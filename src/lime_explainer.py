@@ -121,7 +121,7 @@ def main(samples):
             print("Generating LIME explanation for example {}: {} ".format(i+1, text))
             exp = explainer(method, text, args.num_samples, args.num_classes)
             # list of tuple, words and his weight effecting the model
-            print ("Extract keywords effecting the emotion of the sentence : {}", exp.as_list())
+            print ("Extract keywords effecting the emotion of the sentence : {}", exp.as_list(label = 0))
             # Output to HTML
             output_filename = Path(__file__).parent / "{}-explanation-{}.html".format(i+1, method)
             print (output_filename)
