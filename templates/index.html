@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+<head>
+    <title>NLP explainer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script>
+        $(function(){
+            var dynamicVar = '{% if classifier %}{{ classifier }}{% else%}base{% endif %}';
+            $("#classifier").val(dynamicVar).attr("selected", "selected");
+        });
+     </script>
+</head>
+<body>
+    <h1 align="center">Keywords of Posts and Sentiment Analysis Dashboard(Demo)</h1>
+    <div align="center">
+        <b>
+        0: Negative &nbsp;&nbsp; 1: Neutral &nbsp;&nbsp; 2: Positive
+        &nbsp;&nbsp; </b>
+    </div><br>
+    <div class="container">
+        <form action="/result" method="post" >
+            <dl>
+                <dd>Enter your text:<input type=text name="entry" 
+                                           value='{% if entry %}{{ entry }}{% endif %}'></dd><br>
+                <dd>Number of samples to generate for LIME explainer: (For really long input text, go up to 5000. For Deep learning-based model, please set up below to 1000)
+                    <input type=text name="n_samples" value='{% if n_samples %}{{ n_samples }}{% else %}500{% endif %}'></dd><br>
+                <dd>Choose classifier:
+                    <select name="classifier" id="classifier" selected="selected">
+
+<!--                         <option value="base">Please Select Classifier</option>
+                        <option value="svm">Support Vector Machine</option>
+                        <option value="logistic">Logistic Regression</option>
+                        <option value="fasttext">FastText</option>
+                        <option value="vader">VADER</option>
+                        <option value="textblob">TextBlob</option>
+ -->
+                        <option value="BERT">BERT</option>
+                    </select>
+                </dd><br>
+                <dd><input type=submit value="Explain results!"></dd> 
+            </dl>
+        </form>
+    </div>
+    {% if exp %}
+        <h3 align="center">LIME-explained results using {{ classifier }}</h3>
+        <div class="container">
+            {{ exp|safe }}
+        </div>
+    {% endif %}
+</body>
+</html>
