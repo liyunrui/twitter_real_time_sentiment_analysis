@@ -16,7 +16,10 @@ class Inferer:
             self.model = opt.model_class(bert, opt).to(opt.device)
             print('loading model {0} ...'.format(opt.model_name))
             # remember removed map_location='cpu' when using on server w GPU
-            self.model.load_state_dict(torch.load(opt.state_dict_path))
+            if opt.device == "cuda":
+                self.model.load_state_dict(torch.load(opt.state_dict_path))
+            else:
+                self.model.load_state_dict(torch.load(opt.state_dict_path, map_location='cpu'))
 
         # switch model to evaluation mode
         self.model.eval()
@@ -75,7 +78,7 @@ input_colses = {
 }
 # set your trained models here
 model_state_dict_paths = {
-    'bert_ssc':'../state_dict/bert_ssc_twitter_val_acc0.8849',
+    'bert_ssc':'/Users/yunruili/twitter_post/state_dict/bert_ssc_twitter_val_acc0.8849',
 }
 
 opt = AttrDict()
