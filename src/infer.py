@@ -1,3 +1,7 @@
+"""
+python3 infer.py --input_path ../output/realDonaldTrump_processed_data.csv --output_path ../output/
+
+"""
 from pytorch_pretrained_bert import BertModel
 from data_utils import Tokenizer4Bert
 from models.bert_ssc import BERT_SSC
@@ -5,6 +9,12 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import pandas as pd
+import os
+import argparse
+import warnings
+from lime_explainer import explainer
+warnings.simplefilter("ignore", UserWarning)
+from tqdm import tqdm 
 
 class Inferer:
     """A simple inference example"""
@@ -27,15 +37,11 @@ class Inferer:
 
     def evaluate(self, raw_texts, input_cols):
         """
-        paras:
+        Paras:
             raw_texts: list of string
             input_cols: list
-            aspects: list of string
-        we need to add arguments called Aspects. [Now, we only support the below 4 aspects if using this argument]
-            1.Ljud
-            2.Komfort
-            3.Product
-            4.Batteri
+         
+        Return list of probabilities of predicted class from the BERT model, list of list of float.        
         """
         if input_cols == ['text_raw_bert_indices']:
             #-----------------------
@@ -66,58 +72,87 @@ class Inferer:
         #text = text.replace("\n", " ")
         return text
 
-# setting
-class AttrDict(dict):
-    def __init__(self, *args, **kwargs):
-        super(AttrDict, self).__init__(*args, **kwargs)
-        self.__dict__ = self
+if __name__ == '__main__':
 
-input_colses = {
-    'bert_ssc': ['text_raw_bert_indices'],
+    # # setting
+    # class AttrDict(dict):
+    #     def __init__(self, *args, **kwargs):
+    #         super(AttrDict, self).__init__(*args, **kwargs)
+    #         self.__dict__ = self
 
-}
-# set your trained models here
-model_state_dict_paths = {
-    'bert_ssc':'/Users/yunruili/twitter_post/state_dict/bert_ssc_twitter_val_acc0.8849',
-}
+    # input_colses = {
+    #     'bert_ssc': ['text_raw_bert_indices'],
 
-opt = AttrDict()
-opt.model_name = 'bert_ssc'
-opt["max_seq_len"] = 140
-opt["pretrained_bert_name"] = "bert-base-uncased"
-opt.dropout = 0.1
-opt.bert_dim = 768
-opt.state_dict_path = model_state_dict_paths[opt.model_name]
-opt.max_seq_len = 140
-opt.polarities_dim = 3
-opt.inputs_cols = input_colses[opt.model_name]
-opt.hops = 3
-opt.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model_classes = {
-    'bert_ssc':BERT_SSC,
-}
-opt.model_class = model_classes[opt.model_name]
-input_colses = {
-    'bert_ssc': ['text_raw_bert_indices'],
+    # }
+    # # set your trained models here
+    # model_state_dict_paths = {
+    #     'bert_ssc':'/Users/yunruili/twitter_post/state_dict/bert_ssc_twitter_val_acc0.8849',
+    # }
 
-}
-opt.inputs_cols = input_colses[opt.model_name]
-# infer
-inf = Inferer(opt)
+    # opt = AttrDict()
+    # opt.model_name = 'bert_ssc'
+    # opt["max_seq_len"] = 140
+    # opt["pretrained_bert_name"] = "bert-base-uncased"
+    # opt.dropout = 0.1
+    # opt.bert_dim = 768
+    # opt.state_dict_path = model_state_dict_paths[opt.model_name]
+    # opt.max_seq_len = 140
+    # opt.polarities_dim = 3
+    # opt.inputs_cols = input_colses[opt.model_name]
+    # opt.hops = 3
+    # opt.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # model_classes = {
+    #     'bert_ssc':BERT_SSC,
+    # }
+    # opt.model_class = model_classes[opt.model_name]
+    # input_colses = {
+    #     'bert_ssc': ['text_raw_bert_indices'],
 
-# save 
-t_probs = inf.evaluate(
-    ["it's a good policy"],
-    input_cols = opt.inputs_cols
-    )
-print (t_probs)
-polarity_dict ={
-        2:"postive",
-        1:"neutral",
-        0:"negative"
-}
-prediction = t_probs.argmax(axis=-1) 
-print ([polarity_dict[p] for p in prediction])
+    # }
+    # opt.inputs_cols = input_colses[opt.model_name]
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input_path', default="../dataset/raw_data", type=str)
+    parser.add_argument('--output_path', default="../dataset/tagged_data", type=str)
+
+    opt = parser.parse_args()
+
+    data_dir = opt.input_path
+    # load data
+    df = pd.read_csv(data_dir)
+    df.text = df.text.astype(str)
+    from config import Configs
+    # infer
+    inf = Inferer(Configs.opt)
+    
+    # save 
+    t_probs = inf.evaluate(
+        df.text.tolist(),
+        input_cols = Configs.opt.inputs_cols
+        )
+    print (t_probs)
+    polarity_dict ={
+            2:"postive",
+            1:"neutral",
+            0:"negative"
+    }
+    prediction = t_probs.argmax(axis=-1) 
+    prediction = [polarity_dict[p] for p in prediction]
+    print (prediction)
+    df["pred"] = prediction
+    user_name = data_dir.split("/")[-1][:-19]
+
+    keywords = []
+    for text in tqdm(df.text.tolist()):
+        exp = explainer("BERT",
+                        text=text,
+                        num_samples=5,
+                        num_classes=["negative","neutral","positive"]
+                        )
+        print (exp.local_exp.keys())
+        keywords.append(exp.as_list(label = list(exp.local_exp.keys())[0]))
+    df["keywords"] = keywords
+    df.to_csv(os.path.join(opt.output_path, "{}.csv".format("{}_processed_data".format(user_name))), index = False)
+
 
 
 

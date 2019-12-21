@@ -5,7 +5,6 @@ from tqdm import tqdm
 import numpy as np
 from pathlib import Path
 from config import Configs
-from infer import Inferer
 
 
 METHODS = {
@@ -27,6 +26,8 @@ class BertExplainer:
        	Our goal is to see how the words that affect the classifier the most.
     """
     def __init__(self):
+        from infer import Inferer
+
         self.inf = Inferer(Configs.opt)
 
     def predict(self, texts):
